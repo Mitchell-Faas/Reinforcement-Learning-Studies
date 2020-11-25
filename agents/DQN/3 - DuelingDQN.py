@@ -141,6 +141,8 @@ class DuelingDQN:
             self.update_model(loss)
 
             if done:
+                # Update max-reward and progress-bar
+                max_reward = max(score, max_reward)
                 progress_bar.set_postfix({
                     'reward': score,
                     'epsilon': self.eps,
