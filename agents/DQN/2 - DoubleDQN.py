@@ -1,3 +1,5 @@
+# Adds stability
+
 import numpy as np
 import torch
 import cpprb
@@ -6,9 +8,10 @@ import tqdm
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Hyper parameters
-LR = 1e-3
+LR = 10**-3
 GAMMA = 0.99
 BATCH_SIZE = 64
+TARGET_PERSISTENCE = 250
 
 
 class Network(torch.nn.Module):
@@ -16,7 +19,6 @@ class Network(torch.nn.Module):
     def __init__(self, in_size, out_size):
         super().__init__()
 
-        # fc stands for fully-connected
         self.fc = torch.nn.Sequential(
             torch.nn.Linear(in_size, 256),
             torch.nn.ReLU(),
@@ -32,10 +34,10 @@ class Network(torch.nn.Module):
         return self.fc(t)
 
 
-class SimpleDQN:
+class DoubleDQN:
 
     def __init__(self, env):
-        self.name = '1 - SimpleDQN'
+        self.name = '2 - DoubleDQN'
 
         # Environment related logic
         self.env = env
@@ -45,8 +47,11 @@ class SimpleDQN:
         # Epsilon greedy parameters
         self.eps_min = 0.01
         self.eps_max = 1
-        self.eps_dec = 1e-3
+        self.eps_dec = 10 ** -3
         self.eps_cnt = 0
+
+        # Target counter
+        self.target_cnt = 0
 
         # Replay memory
         env_dict = {'state': {'shape': self.env.observation_space.shape},
@@ -56,8 +61,12 @@ class SimpleDQN:
                     'done': {'dtype': np.bool}}
         self.memory = cpprb.ReplayBuffer(10**6, env_dict)
 
-        # Neural network
+        # Neural networks
         self.policy = Network(in_size=self.observation_size, out_size=self.action_space).to(device)
+        self.target = Network(in_size=self.observation_size, out_size=self.action_space).to(device)
+        self.target.load_state_dict(self.policy.state_dict())
+        self.target.eval()
+
         self.optim = torch.optim.Adam(params=self.policy.parameters(), lr=LR)
         self.loss = torch.nn.MSELoss()
 
@@ -76,7 +85,10 @@ class SimpleDQN:
         # Choose action
         action = self.choose_action(state)
 
-        # Update Epsilon
+        # Update target count
+        self.target_cnt += 1
+
+        # Update epsilon count
         self.eps_cnt += 1
 
         # Update environment
@@ -99,7 +111,7 @@ class SimpleDQN:
 
         # Calculate the temporal difference
         Qval = self.policy(state).gather(1, action)
-        Qval_ = self.policy(state_).max(dim=1, keepdim=True)[0]
+        Qval_ = self.target(state_).gather(1, self.policy(state_).argmax(1, True))
         Qval_[done] = 0
         Qgoal = reward + GAMMA * Qval_
 
@@ -111,6 +123,10 @@ class SimpleDQN:
         self.optim.zero_grad()
         loss.backward()
         self.optim.step()
+
+        # Periodically update the target network
+        if self.target_cnt % TARGET_PERSISTENCE == 0:
+            self.target.load_state_dict(self.policy.state_dict())
 
     def train(self, num_steps, progress_prefix='', *args, **kwargs):
         # Initialize array to set arr and helper variable
@@ -170,5 +186,4 @@ class SimpleDQN:
 
 if __name__ == '__main__':
     import utils.train as train
-    train.train_agent(SimpleDQN)
-
+    train.train_agent(DoubleDQN)
