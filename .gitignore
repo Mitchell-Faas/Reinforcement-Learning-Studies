@@ -1,0 +1,5 @@
+# Pycharm
+.idea/
+
+# Weights of runs are excluded from the repo but can be self-generated.
+weights/
