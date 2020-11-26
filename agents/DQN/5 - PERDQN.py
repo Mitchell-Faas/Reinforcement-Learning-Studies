@@ -48,7 +48,7 @@ class PERDQN:
         # Epsilon greedy parameters
         self.eps_min = 0.01
         self.eps_max = 1
-        self.eps_dec = 10 ** -3
+        self.eps_dec = 5e-4
         self.eps_cnt = 0
 
         # Replay memory
