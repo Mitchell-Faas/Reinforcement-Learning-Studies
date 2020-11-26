@@ -4,7 +4,7 @@ import numpy as np
 from utils.plotting import plot_all, moving_average
 
 
-def train_agent(agent_class, num_steps=1e4, num_experiments=25, env='CartPole-v1'):
+def train_agent(agent_class, num_steps=1e4, num_experiments=25, env='CartPole-v1', env_class=None):
     """
     Function that contains the main logic required to run experiments and generate
     the corresponding plots.
@@ -13,7 +13,10 @@ def train_agent(agent_class, num_steps=1e4, num_experiments=25, env='CartPole-v1
         num_steps = int(num_steps)
 
     # Set up the agent and environment
-    env = gym.make(env)
+    if env_class is None:
+        env = gym.make(env)
+    else:
+        env = env_class
     agent = agent_class(env)
 
     # Ensure data directories are appropriately set up
